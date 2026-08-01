@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   DESIGN TOKENS
+   --------------------------------------------------------------------------
+   PLACEHOLDER BRANDING. When the real logo + brand colors arrive, change the
+   values in this block only — every component reads from these tokens, so
+   nothing else needs to be touched.
+   ========================================================================== */
+@theme {
+  /* Brand — primary (deep professional blue) */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #d9e5ff;
+  --color-brand-200: #bcd1ff;
+  --color-brand-300: #8eb3ff;
+  --color-brand-400: #588aff;
+  --color-brand-500: #3161f5;
+  --color-brand-600: #1d42e2;
+  --color-brand-700: #1a34b6;
+  --color-brand-800: #1b2f8f;
+  --color-brand-900: #0f1f5c;
+  --color-brand-950: #0a1440;
+
+  /* Accent — used sparingly for highlights and CTAs */
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  /* Neutrals */
+  --color-ink: #0b1220;
+  --color-muted: #5a6478;
+  --color-line: #e4e8f0;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f7f9fc;
+
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+
+  /* Display type scale — the "big titles" */
+  --text-display: 3.25rem;
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 800;
+
+  --text-display-lg: 4.5rem;
+  --text-display-lg--line-height: 1;
+  --text-display-lg--letter-spacing: -0.04em;
+  --text-display-lg--font-weight: 800;
+
+  --text-display-xl: 5.75rem;
+  --text-display-xl--line-height: 0.98;
+  --text-display-xl--letter-spacing: -0.045em;
+  --text-display-xl--font-weight: 800;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Keyboard focus ring, applied globally */
+:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   Scroll-reveal animation (progressive enhancement — content is visible even
+   if JS is off, see reveal.tsx)
+   -------------------------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.js [data-reveal] {
+  opacity: 0;
+}
+
+.js [data-reveal].is-visible {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .js [data-reveal],
+  .js [data-reveal].is-visible {
+    opacity: 1;
+    animation: none;
+  }
+}
