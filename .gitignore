@@ -42,3 +42,6 @@ next-env.d.ts
 
 # playwright-mcp screenshot output
 .playwright-mcp/
+
+# keep the template, ignore real env files
+!.env.example

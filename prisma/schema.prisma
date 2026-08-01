@@ -1,0 +1,649 @@
+// Nexa Academy — database schema
+//
+// Payment is handled OFFLINE. The platform never processes cards: a student
+// requests enrollment, an admin approves it, and course content unlocks.
+//
+//   PENDING --(admin approves)--> ACTIVE --(finishes course)--> COMPLETED
+//      |                                                             |
+//      +--(admin rejects)--> REJECTED                    Certificate issued
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// The connection URL lives in prisma.config.ts (Prisma 7), not here.
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────────────────────────────────────── Enums ──────
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+enum Locale {
+  EN
+  FR
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum DeliveryMode {
+  SELF_PACED
+  LIVE_ONLINE
+  IN_PERSON
+  HYBRID
+}
+
+/// Content types an admin can add to a lesson in v1.
+enum LessonType {
+  VIDEO // YouTube embed
+  PDF // uploaded document
+  TEXT // rich text written in the admin
+  QUIZ // links to a Quiz
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+enum CertificateStatus {
+  ISSUED
+  REVOKED
+}
+
+enum ContactStatus {
+  NEW
+  ASSIGNED
+  ANSWERED
+  CLOSED
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ────────────────────────────────────────────────── Identity & access ──────
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  /// Null for accounts created through an OAuth provider.
+  passwordHash String?
+  /// Kept in sync with firstName/lastName; required by the Auth.js adapter.
+  name         String?
+  firstName    String?
+  lastName     String?
+  phone        String?
+  image        String?
+  role         Role       @default(STUDENT)
+  status       UserStatus @default(PENDING_VERIFICATION)
+  locale       Locale     @default(EN)
+
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  instructorProfile InstructorProfile?
+  studentProfile    StudentProfile?
+
+  enrollments        Enrollment[]
+  taughtCourses      CourseInstructor[]
+  certificates       Certificate[]
+  createdCourses     Course[]           @relation("CourseCreatedBy")
+  reviewedEnrollments Enrollment[]      @relation("EnrollmentReviewedBy")
+  assignedMessages   ContactMessage[]   @relation("MessageAssignedTo")
+  testimonials       Testimonial[]
+  auditLogs          AuditLog[]
+  passwordResets     PasswordResetToken[]
+
+  @@index([role])
+  @@index([status])
+}
+
+model InstructorProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  headline       String?
+  bio            String?
+  expertise      String[]
+  certifications String[]
+  linkedinUrl    String?
+  websiteUrl     String?
+  /// Controls whether the instructor appears on the public site.
+  isPublic       Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentProfile {
+  id        String  @id @default(cuid())
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   String?
+  jobTitle  String?
+  education String?
+  goals     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Auth.js adapter model — OAuth provider links.
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Auth.js adapter model. Unused while the session strategy is JWT, but
+/// required by the adapter and needed if we switch to database sessions.
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Auth.js adapter model — also used for email verification links.
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ──────────────────────────────────────────────────────────── Catalog ──────
+
+model Category {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  nameFr      String?
+  description String?
+  icon        String?
+  order       Int     @default(0)
+
+  courses Course[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  title    String
+  subtitle String?
+  /// Long description, rendered as rich text.
+  description String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  level        CourseLevel  @default(BEGINNER)
+  deliveryMode DeliveryMode @default(SELF_PACED)
+  status       CourseStatus @default(DRAFT)
+  locale       Locale       @default(EN)
+
+  /// Total training volume shown to students before they enroll.
+  durationHours Int     @default(0)
+  /// Contact hours claimable towards a certification (PMP requires 35).
+  contactHours  Int?
+  /// Displayed only — enrollment requests are settled offline.
+  price         Decimal @default(0) @db.Decimal(10, 2)
+  currency      String  @default("USD")
+
+  thumbnailUrl        String?
+  promoVideoUrl       String?
+  certificationTarget String?
+  prerequisites       String?
+  learningOutcomes    String[]
+
+  seoTitle       String?
+  seoDescription String?
+
+  isFeatured  Boolean   @default(false)
+  publishedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CourseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  modules      Module[]
+  instructors  CourseInstructor[]
+  enrollments  Enrollment[]
+  quizzes      Quiz[]
+  certificates Certificate[]
+  testimonials Testimonial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, isFeatured])
+  @@index([categoryId])
+}
+
+model CourseInstructor {
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isLead   Boolean @default(false)
+
+  assignedAt DateTime @default(now())
+
+  @@id([courseId, userId])
+  @@index([userId])
+}
+
+model Module {
+  id          String  @id @default(cuid())
+  courseId    String
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int     @default(0)
+
+  lessons Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId, order])
+}
+
+model Lesson {
+  id       String     @id @default(cuid())
+  moduleId String
+  module   Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title    String
+  type     LessonType @default(VIDEO)
+  order    Int        @default(0)
+
+  /// Rich text body for TEXT lessons.
+  content String?
+  /// YouTube video id for VIDEO lessons (not the full URL).
+  youtubeId String?
+  /// Storage key for PDF lessons. Served through a signed, expiring URL —
+  /// never linked to directly.
+  fileKey   String?
+  fileName  String?
+  fileSize  Int?
+
+  durationMinutes Int?
+  /// Viewable by anyone as a free preview, without enrollment.
+  isPreview       Boolean @default(false)
+  /// Counts towards course completion.
+  isRequired      Boolean @default(true)
+
+  quiz     Quiz?
+  progress LessonProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([moduleId, order])
+}
+
+// ───────────────────────────────────────────────────────── Enrollment ──────
+
+model Enrollment {
+  id       String           @id @default(cuid())
+  userId   String
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  status   EnrollmentStatus @default(PENDING)
+
+  /// Optional note the student adds when requesting a place.
+  requestMessage String?
+  /// Admin-facing note explaining an approval or rejection.
+  reviewNote     String?
+
+  requestedAt  DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+  reviewedBy   User?     @relation("EnrollmentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  /// Null means access does not expire.
+  accessExpiresAt DateTime?
+
+  progressPercent Int  @default(0)
+  finalScore      Int?
+
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
+  certificate    Certificate?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// A student holds at most one enrollment per course.
+  @@unique([userId, courseId])
+  @@index([status])
+  @@index([courseId, status])
+}
+
+model LessonProgress {
+  id           String         @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonId     String
+  lesson       Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  status       ProgressStatus @default(NOT_STARTED)
+
+  /// Resume position for video lessons.
+  lastPositionSeconds Int       @default(0)
+  completedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([enrollmentId, lessonId])
+  @@index([lessonId])
+}
+
+// ───────────────────────────────────────────────────────── Assessment ──────
+
+model Quiz {
+  id       String  @id @default(cuid())
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  /// Set when the quiz is delivered as a lesson inside a module.
+  lessonId String? @unique
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+  /// Percentage required to pass, 0-100.
+  passScore      Int  @default(70)
+  timeLimitMin   Int?
+  maxAttempts    Int  @default(3)
+  shuffleQuestions Boolean @default(true)
+  /// Show correct answers after submission.
+  showAnswers    Boolean @default(true)
+  /// Passing this quiz is required to complete the course.
+  isFinal        Boolean @default(false)
+
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model Question {
+  id          String       @id @default(cuid())
+  quizId      String
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type        QuestionType @default(SINGLE_CHOICE)
+  text        String
+  /// Shown after submission when showAnswers is enabled.
+  explanation String?
+  points      Int          @default(1)
+  order       Int          @default(0)
+
+  options AnswerOption[]
+  answers AttemptAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([quizId, order])
+}
+
+model AnswerOption {
+  id         String  @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean @default(false)
+  order      Int     @default(0)
+
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id           String        @id @default(cuid())
+  quizId       String
+  quiz         Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  enrollmentId String
+  enrollment   Enrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  status       AttemptStatus @default(IN_PROGRESS)
+
+  attemptNumber Int
+  /// Percentage score, 0-100. Null until submitted.
+  score         Int?
+  passed        Boolean?
+
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  answers AttemptAnswer[]
+
+  @@unique([enrollmentId, quizId, attemptNumber])
+  @@index([quizId])
+}
+
+model AttemptAnswer {
+  id        String      @id @default(cuid())
+  attemptId String
+  attempt   QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  /// Ids of the AnswerOption rows the student selected.
+  selectedOptionIds String[]
+  isCorrect         Boolean  @default(false)
+  pointsAwarded     Int      @default(0)
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+}
+
+// ──────────────────────────────────────────────────────── Certificates ─────
+
+model Certificate {
+  id           String     @id @default(cuid())
+  enrollmentId String     @unique
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  /// Human-readable code printed on the certificate and used to verify it
+  /// at /verify/{serial}.
+  serial       String            @unique
+  status       CertificateStatus @default(ISSUED)
+  contactHours Int?
+  finalScore   Int?
+
+  /// Snapshot of the recipient and course names, so a later rename of the
+  /// user or course does not rewrite history on an issued certificate.
+  recipientName String
+  courseTitle   String
+
+  pdfUrl       String?
+  issuedAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  revokeReason String?
+
+  @@index([userId])
+  @@index([courseId])
+}
+
+// ────────────────────────────────────────────────── Marketing & support ────
+
+/// Legal and CMS pages (privacy, terms, cookies), editable by an admin
+/// without a deploy.
+model Page {
+  id       String  @id @default(cuid())
+  slug     String
+  locale   Locale  @default(EN)
+  title    String
+  body     String
+  seoTitle String?
+  seoDescription String?
+  isPublished Boolean @default(false)
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([slug, locale])
+}
+
+model Testimonial {
+  id       String  @id @default(cuid())
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  authorName  String
+  authorTitle String?
+  authorPhoto String?
+  rating      Int              @default(5)
+  quote       String
+  status      ModerationStatus @default(PENDING)
+  isFeatured  Boolean          @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, isFeatured])
+}
+
+model ContactMessage {
+  id      String  @id @default(cuid())
+  name    String
+  email   String
+  phone   String?
+  subject String?
+  message String
+  /// Slug of the course the visitor was asking about, if any.
+  courseSlug String?
+
+  status       ContactStatus @default(NEW)
+  assignedToId String?
+  assignedTo   User?         @relation("MessageAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  repliedAt    DateTime?
+
+  /// Kept for rate limiting and spam triage.
+  sourcePage String?
+  ipHash     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  actorId  String?
+  actor    User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action   String
+  entity   String
+  entityId String?
+  metadata Json?
+  ipHash   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId])
+}
+
+/// Simple key/value store for site settings the admin can change.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

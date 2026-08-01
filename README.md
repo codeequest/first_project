@@ -20,20 +20,45 @@ One language across the whole stack, so any collaborator can work on both the pa
 
 ## Getting started
 
+Requires Node.js 20+ and either Docker or a PostgreSQL connection string.
+
 ```bash
+# 1. Install dependencies (also generates the Prisma client)
 npm install
-npm run dev       # http://localhost:3000
+
+# 2. Configure the environment
+cp .env.example .env
+npx auth secret        # writes AUTH_SECRET into .env
+
+# 3. Start PostgreSQL (skip if you already have one — just set DATABASE_URL)
+docker compose up -d
+
+# 4. Create the tables and load the seed data
+npm run db:push
+npm run db:seed
+
+# 5. Run it
+npm run dev            # http://localhost:3000
 ```
 
-Other scripts:
+`npm run db:seed` creates the four courses, their categories, placeholder legal
+pages, and an **admin account** using `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`
+from `.env`. Change that password before deploying anywhere public.
 
-```bash
-npm run build     # production build + TypeScript check
-npm run start     # serve the production build
-npm run lint      # eslint
-```
+### Scripts
 
-Requires Node.js 20 or newer.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` | Production build **+ TypeScript check** |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run db:push` | Sync the schema to the database (development) |
+| `npm run db:migrate` | Create a versioned migration (use before deploying) |
+| `npm run db:deploy` | Apply migrations (production) |
+| `npm run db:seed` | Load seed data |
+| `npm run db:studio` | Browse the database in a GUI |
+| `npm run db:reset` | Drop everything and re-seed |
 
 ## Project structure
 
@@ -93,18 +118,47 @@ Student signs up
 - **Instructor** — public profile, sees assigned courses and enrolled students, views quiz results. Does not upload content in v1.
 - **Admin** — everything: users, courses, lessons, PDF uploads, YouTube links, quizzes, **enrollment approvals**, certificates, testimonials, contact inbox, legal pages.
 
+## Authentication
+
+Auth.js v5 with email + password (bcrypt, cost 12) and JWT sessions.
+
+- `src/auth.config.ts` — **edge-safe** config: route rules, JWT/session callbacks. No database, no bcrypt, because `proxy.ts` runs on the edge runtime.
+- `src/auth.ts` — full config: Credentials provider, Prisma adapter. Node runtime only.
+- `src/proxy.ts` — route protection (Next.js 16 renamed `middleware` to `proxy`).
+- `src/lib/session.ts` — `requireUser()` / `requireRole()` for server-side checks.
+
+**Authorization is checked twice on purpose.** `proxy.ts` blocks unauthenticated
+navigation, and every protected page calls `requireRole()` again. The proxy does
+not run for direct server-action invocations, so it can never be the only check.
+When you add a server action that touches private data, call `requireRole()`
+inside it.
+
+An OAuth provider (Google, Microsoft) can be added without schema changes — the
+`Account` table and the Prisma adapter are already in place.
+
+### Not done yet
+
+- **Email verification.** New accounts are created `ACTIVE`. Once transactional
+  email is wired up, switch to `PENDING_VERIFICATION` in
+  `src/lib/actions/auth.ts` and gate login on a verified address.
+- **Password reset.** The `PasswordResetToken` table exists; the flow does not.
+- **Rate limiting** on login and signup.
+
 ## Roadmap
 
 - [x] Project scaffold, design tokens, header/footer
 - [x] Home page
+- [x] Prisma schema + PostgreSQL (full v1 domain model)
+- [x] Auth.js with the three roles + route protection
+- [x] Dashboard shells for student, instructor and admin
 - [ ] Courses catalog + course detail page
+- [ ] Enrollment request flow + admin approval actions
 - [ ] Contact form (validation + spam protection)
 - [ ] Legal pages with real content
-- [ ] Prisma schema + PostgreSQL
-- [ ] Auth.js with the three roles
-- [ ] Student dashboard + lesson player (PDF, YouTube, quizzes)
+- [ ] Lesson player (PDF, YouTube, quizzes)
 - [ ] Progress tracking + certificate generation with public verification
-- [ ] Admin dashboard + enrollment approval queue
+- [ ] Email verification, password reset, rate limiting
+- [ ] Full admin CRUD (courses, modules, lessons, users)
 - [ ] French / English i18n
 
 ## Contributing

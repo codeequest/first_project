@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/coming-soon";
+import { AuthShell } from "@/components/auth-shell";
+import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in" };
 
 export default function LoginPage() {
   return (
-    <ComingSoon
-      eyebrow="Account"
-      title="Log in"
-      description="Authentication for students, instructors and admins is being wired up with Auth.js and PostgreSQL."
-    />
+    <AuthShell
+      title="Welcome back"
+      subtitle="Log in to reach your courses, materials and certificates."
+      footer={{
+        text: "Don't have an account?",
+        linkLabel: "Create one",
+        href: "/signup",
+      }}
+    >
+      <LoginForm />
+    </AuthShell>
   );
 }

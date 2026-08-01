@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { homePathForRole } from "@/auth.config";
 import { mainNav } from "@/lib/site";
 import { Logo } from "./logo";
 import { ButtonLink, Container, cn } from "./ui";
@@ -9,6 +11,13 @@ import { ButtonLink, Container, cn } from "./ui";
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: session, status } = useSession();
+
+  const signedIn = status === "authenticated";
+  // The session is fetched client-side, so hold the space until it resolves
+  // rather than flashing "Log in" at someone who is already logged in.
+  const sessionLoading = status === "loading";
+  const dashboardHref = homePathForRole(session?.user?.role);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -51,10 +60,18 @@ export function SiteHeader() {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            <ButtonLink href="/login" variant="ghost">
-              Log in
-            </ButtonLink>
-            <ButtonLink href="/signup">Get started</ButtonLink>
+            {sessionLoading ? (
+              <div aria-hidden="true" className="h-11 w-48" />
+            ) : signedIn ? (
+              <ButtonLink href={dashboardHref}>My dashboard</ButtonLink>
+            ) : (
+              <>
+                <ButtonLink href="/login" variant="ghost">
+                  Log in
+                </ButtonLink>
+                <ButtonLink href="/signup">Get started</ButtonLink>
+              </>
+            )}
           </div>
 
           <button
@@ -108,16 +125,27 @@ export function SiteHeader() {
               </Link>
             ))}
             <div className="mt-4 flex flex-col gap-2 pb-2">
-              <ButtonLink
-                href="/login"
-                variant="secondary"
-                onClick={() => setMenuOpen(false)}
-              >
-                Log in
-              </ButtonLink>
-              <ButtonLink href="/signup" onClick={() => setMenuOpen(false)}>
-                Get started
-              </ButtonLink>
+              {signedIn ? (
+                <ButtonLink
+                  href={dashboardHref}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  My dashboard
+                </ButtonLink>
+              ) : (
+                <>
+                  <ButtonLink
+                    href="/login"
+                    variant="secondary"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Log in
+                  </ButtonLink>
+                  <ButtonLink href="/signup" onClick={() => setMenuOpen(false)}>
+                    Get started
+                  </ButtonLink>
+                </>
+              )}
             </div>
           </nav>
         </Container>

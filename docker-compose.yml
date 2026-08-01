@@ -1,0 +1,26 @@
+# Local PostgreSQL for development.
+#   docker compose up -d      start
+#   docker compose down       stop
+#   docker compose down -v    stop and wipe the data
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nexa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexa
+      POSTGRES_PASSWORD: nexa
+      POSTGRES_DB: nexa_academy
+    ports:
+      # Host port 5433 to avoid clashing with any other local Postgres.
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexa -d nexa_academy"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/coming-soon";
+import { AuthShell } from "@/components/auth-shell";
+import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "Sign up" };
 
 export default function SignupPage() {
   return (
-    <ComingSoon
-      eyebrow="Account"
+    <AuthShell
       title="Create your account"
-      description="Student registration with email verification is next in the build queue, alongside the login flow."
-    />
+      subtitle="Sign up for free, then request a place on any program in the catalog."
+      footer={{
+        text: "Already have an account?",
+        linkLabel: "Log in",
+        href: "/login",
+      }}
+    >
+      <SignupForm />
+    </AuthShell>
   );
 }
