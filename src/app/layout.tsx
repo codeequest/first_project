@@ -39,7 +39,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable} h-full`}>
+    // suppressHydrationWarning: the inline script below adds a `js` class to
+    // <html> before React hydrates, so the class list intentionally differs.
+    <html
+      lang="en"
+      className={`${inter.variable} ${sora.variable} h-full`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Marks that JS is available so scroll-reveal can hide content
             without breaking the no-JS experience. */}

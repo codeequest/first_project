@@ -48,7 +48,7 @@ function Hero() {
                   aria-hidden="true"
                   viewBox="0 0 300 14"
                   preserveAspectRatio="none"
-                  className="absolute -bottom-1 left-0 h-3 w-full text-accent-400"
+                  className="absolute -bottom-3 left-0 h-3 w-full text-accent-400"
                 >
                   <path
                     d="M2 9c60-6 130-8 296-4"
