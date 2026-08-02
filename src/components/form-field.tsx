@@ -52,6 +52,57 @@ export function FormField({
   );
 }
 
+export function FormTextarea({
+  label,
+  name,
+  errors,
+  hint,
+  className,
+  ...props
+}: ComponentProps<"textarea"> & {
+  label: string;
+  name: string;
+  errors?: string[];
+  hint?: string;
+}) {
+  const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  const hasError = Boolean(errors?.length);
+
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <label htmlFor={name} className="text-sm font-semibold text-ink">
+        {label}
+      </label>
+      <textarea
+        id={name}
+        name={name}
+        aria-invalid={hasError || undefined}
+        aria-describedby={
+          hasError ? errorId : hint ? hintId : undefined
+        }
+        className={cn(
+          "w-full resize-y rounded-xl border bg-white px-4 py-2.5 text-[15px] text-ink transition-colors placeholder:text-muted/60",
+          hasError
+            ? "border-red-400 focus-visible:outline-red-500"
+            : "border-line hover:border-brand-300",
+        )}
+        {...props}
+      />
+      {hint && !hasError ? (
+        <p id={hintId} className="text-xs text-muted">
+          {hint}
+        </p>
+      ) : null}
+      {hasError ? (
+        <p id={errorId} className="text-xs font-medium text-red-600">
+          {errors?.[0]}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function FormError({ children }: { children: React.ReactNode }) {
   if (!children) return null;
   return (
