@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { courses } from "@/lib/courses";
+import { getFooterCourseLinks } from "@/lib/courses";
 import { legalNav, mainNav, site } from "@/lib/site";
 import { Logo } from "./logo";
 import { Container } from "./ui";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const courses = await getFooterCourseLinks();
+
   return (
     <footer className="mt-auto bg-brand-950 text-white/70">
       <Container className="py-16">

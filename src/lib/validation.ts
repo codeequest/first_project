@@ -39,3 +39,23 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+export const contactSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email address")
+    .max(255),
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  subject: z.string().trim().max(150).optional().or(z.literal("")),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Tell us a little more — at least 10 characters")
+    .max(4000),
+  courseSlug: z.string().trim().max(80).optional().or(z.literal("")),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;

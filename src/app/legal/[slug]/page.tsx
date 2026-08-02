@@ -1,33 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ComingSoon } from "@/components/coming-soon";
+import { Container, Eyebrow } from "@/components/ui";
+import { getPage, getPageSlugs } from "@/lib/pages";
 
-/**
- * Placeholder legal pages. These will later be driven by a `Page` table in the
- * database so the admin can edit them without a deploy.
- */
-const legalPages = {
-  privacy: {
-    title: "Privacy Policy",
-    description:
-      "How we collect, store and process personal data, and the rights you have over it.",
-  },
-  terms: {
-    title: "Terms of Service",
-    description:
-      "The terms governing enrollment, course access, cancellations and use of the platform.",
-  },
-  cookies: {
-    title: "Cookie Policy",
-    description:
-      "Which cookies we use, what they do, and how you can control them.",
-  },
-} as const;
+export const revalidate = 300;
 
-type LegalSlug = keyof typeof legalPages;
-
-export function generateStaticParams() {
-  return Object.keys(legalPages).map((slug) => ({ slug }));
+export async function generateStaticParams() {
+  const slugs = await getPageSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({
@@ -36,8 +17,12 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const page = legalPages[slug as LegalSlug];
-  return { title: page?.title ?? "Legal" };
+  const page = await getPage(slug);
+  if (!page) return { title: "Legal" };
+  return {
+    title: page.seoTitle ?? page.title,
+    description: page.seoDescription ?? undefined,
+  };
 }
 
 export default async function LegalPage({
@@ -46,15 +31,39 @@ export default async function LegalPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const page = legalPages[slug as LegalSlug];
+  const page = await getPage(slug);
 
   if (!page) notFound();
 
+  if (!page.isPublished) {
+    return (
+      <ComingSoon
+        eyebrow="Legal"
+        title={page.title}
+        description="This page is still being reviewed by the team before publication. Check back shortly."
+      />
+    );
+  }
+
   return (
-    <ComingSoon
-      eyebrow="Legal"
-      title={page.title}
-      description={`${page.description} The final text needs to be supplied or reviewed by the client before publication.`}
-    />
+    <section className="py-20 sm:py-28">
+      <Container className="max-w-3xl">
+        <Eyebrow>Legal</Eyebrow>
+        <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight text-ink">
+          {page.title}
+        </h1>
+        <p className="mt-2 text-sm text-muted">
+          Last updated{" "}
+          {page.updatedAt.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </p>
+        <div className="mt-10 whitespace-pre-line text-[15px] leading-relaxed text-ink/80">
+          {page.body}
+        </div>
+      </Container>
+    </section>
   );
 }

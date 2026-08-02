@@ -151,9 +151,9 @@ An OAuth provider (Google, Microsoft) can be added without schema changes — th
 - [x] Prisma schema + PostgreSQL (full v1 domain model)
 - [x] Auth.js with the three roles + route protection
 - [x] Dashboard shells for student, instructor and admin
-- [ ] Courses catalog + course detail page
+- [x] Courses catalog + course detail page
 - [ ] Enrollment request flow + admin approval actions
-- [ ] Contact form (validation + spam protection)
+- [x] Contact form (validation + spam protection)
 - [ ] Legal pages with real content
 - [ ] Lesson player (PDF, YouTube, quizzes)
 - [ ] Progress tracking + certificate generation with public verification

@@ -1,14 +1,18 @@
 import { CourseCard } from "@/components/course-card";
 import { Reveal } from "@/components/reveal";
 import { ButtonLink, Container, Eyebrow, SectionHeading } from "@/components/ui";
-import { featuredCourses } from "@/lib/courses";
+import { getFeaturedCourses, type CourseCardData } from "@/lib/courses";
 
-export default function HomePage() {
+export const revalidate = 300;
+
+export default async function HomePage() {
+  const featuredCourses = await getFeaturedCourses();
+
   return (
     <>
       <Hero />
       <TrustBar />
-      <FeaturedCourses />
+      <FeaturedCourses courses={featuredCourses} />
       <WhyUs />
       <HowItWorks />
       <Testimonials />
@@ -146,7 +150,7 @@ function TrustBar() {
 
 /* ── Featured courses ─────────────────────────────────────────────────── */
 
-function FeaturedCourses() {
+function FeaturedCourses({ courses }: { courses: CourseCardData[] }) {
   return (
     <section id="courses" className="py-24 sm:py-32">
       <Container>
@@ -163,7 +167,7 @@ function FeaturedCourses() {
         </Reveal>
 
         <div className="mt-14 grid gap-6 sm:grid-cols-2">
-          {featuredCourses.map((course, index) => (
+          {courses.map((course, index) => (
             <Reveal key={course.slug} delay={index * 90}>
               <CourseCard course={course} />
             </Reveal>

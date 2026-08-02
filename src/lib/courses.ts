@@ -1,125 +1,178 @@
-/**
- * Static course catalog used by the marketing pages.
- *
- * This is TEMPORARY seed data so the front end can be built and reviewed
- * before the database exists. Once Prisma + PostgreSQL are wired up, these
- * objects get replaced by DB queries — the `Course` shape below is
- * deliberately close to the planned `Course` table so the swap is mechanical.
- */
+import type { CourseLevel, Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 
-export type CourseCategory =
-  | "BI & Data"
-  | "Artificial Intelligence"
-  | "Project Management"
-  | "Agile";
-
-export type CourseLevel = "Beginner" | "Intermediate" | "Advanced";
-
-export type Course = {
-  slug: string;
-  title: string;
-  subtitle: string;
-  category: CourseCategory;
-  level: CourseLevel;
-  /** Total training volume shown on the card and the detail page. */
-  durationHours: number;
-  /** Displayed only — enrollment is a request, payment is handled offline. */
-  price: number;
-  currency: string;
-  /** Certification the course prepares for, if any. */
-  certification?: string;
-  outcomes: string[];
-  featured: boolean;
+export const levelLabels: Record<CourseLevel, string> = {
+  BEGINNER: "Beginner",
+  INTERMEDIATE: "Intermediate",
+  ADVANCED: "Advanced",
 };
 
-export const courses: Course[] = [
-  {
-    slug: "power-bi",
-    title: "Power BI",
-    subtitle:
-      "Turn raw data into decision-ready dashboards, from data modeling to DAX and publishing.",
-    category: "BI & Data",
-    level: "Beginner",
-    durationHours: 40,
-    price: 850,
-    currency: "USD",
-    certification: "Microsoft PL-300",
-    outcomes: [
-      "Model and clean data with Power Query",
-      "Write DAX measures with confidence",
-      "Design dashboards executives actually use",
-      "Publish and govern reports in the Power BI Service",
-    ],
-    featured: true,
-  },
-  {
-    slug: "generative-ai",
-    title: "Generative AI",
-    subtitle:
-      "Build practical AI solutions — prompting, retrieval-augmented generation, agents and safe deployment.",
-    category: "Artificial Intelligence",
-    level: "Intermediate",
-    durationHours: 35,
-    price: 950,
-    currency: "USD",
-    outcomes: [
-      "Design prompts that hold up in production",
-      "Build a RAG pipeline over your own documents",
-      "Integrate LLM APIs into real applications",
-      "Evaluate output quality, cost and risk",
-    ],
-    featured: true,
-  },
-  {
-    slug: "pmp",
-    title: "PMP Certification Prep",
-    subtitle:
-      "The full 35 contact hours required for PMI eligibility, plus exam strategy and mock exams.",
-    category: "Project Management",
-    level: "Advanced",
-    durationHours: 35,
-    price: 1200,
-    currency: "USD",
-    certification: "PMI PMP",
-    outcomes: [
-      "Cover all three PMP exam domains in depth",
-      "Earn the 35 contact hours PMI requires",
-      "Practise with full-length mock exams",
-      "Master predictive, agile and hybrid approaches",
-    ],
-    featured: true,
-  },
-  {
-    slug: "scrum-master",
-    title: "Professional Scrum Master",
-    subtitle:
-      "Master the Scrum framework and the facilitation skills that make teams actually deliver.",
-    category: "Agile",
-    level: "Beginner",
-    durationHours: 16,
-    price: 700,
-    currency: "USD",
-    certification: "PSM I",
-    outcomes: [
-      "Apply the Scrum framework end to end",
-      "Facilitate the five Scrum events effectively",
-      "Coach teams through real-world impediments",
-      "Prepare for the PSM I assessment",
-    ],
-    featured: true,
-  },
-];
+const courseCardSelect = {
+  slug: true,
+  title: true,
+  subtitle: true,
+  level: true,
+  durationHours: true,
+  price: true,
+  currency: true,
+  certificationTarget: true,
+  learningOutcomes: true,
+  category: { select: { slug: true, name: true } },
+} satisfies Prisma.CourseSelect;
 
-export const featuredCourses = courses.filter((course) => course.featured);
+type CourseCardRow = Prisma.CourseGetPayload<{ select: typeof courseCardSelect }>;
 
-export function getCourse(slug: string): Course | undefined {
-  return courses.find((course) => course.slug === slug);
+export type CourseCardData = Omit<CourseCardRow, "price"> & { price: number };
+
+function toCourseCardData(row: CourseCardRow): CourseCardData {
+  return { ...row, price: Number(row.price) };
 }
 
-export function formatPrice(course: Pick<Course, "price" | "currency">) {
+export async function getFeaturedCourses(limit = 4): Promise<CourseCardData[]> {
+  const rows = await prisma.course.findMany({
+    where: { status: "PUBLISHED", isFeatured: true },
+    select: courseCardSelect,
+    orderBy: { publishedAt: "desc" },
+    take: limit,
+  });
+  return rows.map(toCourseCardData);
+}
+
+export async function getPublishedCourses(filters?: {
+  categorySlug?: string;
+  level?: CourseLevel;
+}): Promise<CourseCardData[]> {
+  const rows = await prisma.course.findMany({
+    where: {
+      status: "PUBLISHED",
+      ...(filters?.categorySlug
+        ? { category: { slug: filters.categorySlug } }
+        : {}),
+      ...(filters?.level ? { level: filters.level } : {}),
+    },
+    select: courseCardSelect,
+    orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
+  });
+  return rows.map(toCourseCardData);
+}
+
+export async function getCategories() {
+  return prisma.category.findMany({
+    where: { courses: { some: { status: "PUBLISHED" } } },
+    select: { slug: true, name: true, nameFr: true },
+    orderBy: { order: "asc" },
+  });
+}
+
+const courseDetailSelect = {
+  slug: true,
+  title: true,
+  subtitle: true,
+  description: true,
+  level: true,
+  deliveryMode: true,
+  durationHours: true,
+  contactHours: true,
+  price: true,
+  currency: true,
+  certificationTarget: true,
+  prerequisites: true,
+  learningOutcomes: true,
+  seoTitle: true,
+  seoDescription: true,
+  category: { select: { slug: true, name: true } },
+  modules: {
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      title: true,
+      lessons: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          durationMinutes: true,
+          isPreview: true,
+        },
+      },
+    },
+  },
+  instructors: {
+    where: { user: { instructorProfile: { isPublic: true } } },
+    select: {
+      isLead: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          instructorProfile: {
+            select: { headline: true, bio: true, expertise: true },
+          },
+        },
+      },
+    },
+  },
+  testimonials: {
+    where: { status: "APPROVED" },
+    select: {
+      id: true,
+      authorName: true,
+      authorTitle: true,
+      rating: true,
+      quote: true,
+    },
+  },
+} satisfies Prisma.CourseSelect;
+
+type CourseDetailRow = Prisma.CourseGetPayload<{
+  select: typeof courseDetailSelect;
+}>;
+
+export type CourseDetailData = Omit<CourseDetailRow, "price"> & {
+  price: number;
+};
+
+export async function getCourseBySlug(
+  slug: string,
+): Promise<CourseDetailData | null> {
+  const row = await prisma.course.findFirst({
+    where: { slug, status: "PUBLISHED" },
+    select: courseDetailSelect,
+  });
+  if (!row) return null;
+  return { ...row, price: Number(row.price) };
+}
+
+export async function getPublishedCourseSlugs(): Promise<string[]> {
+  const rows = await prisma.course.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true },
+  });
+  return rows.map((row) => row.slug);
+}
+
+/** Lightweight list for nav-style contexts like the site footer. */
+export async function getFooterCourseLinks() {
+  return prisma.course.findMany({
+    where: { status: "PUBLISHED" },
+    select: { slug: true, title: true },
+    orderBy: { publishedAt: "desc" },
+    take: 4,
+  });
+}
+
+export function formatPrice({
+  price,
+  currency,
+}: {
+  price: number;
+  currency: string;
+}) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: course.currency,
+    currency,
     maximumFractionDigits: 0,
-  }).format(course.price);
+  }).format(price);
 }
