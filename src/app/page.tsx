@@ -1,11 +1,21 @@
+import type { Metadata } from "next";
 import { CourseCard } from "@/components/course-card";
 import { Reveal } from "@/components/reveal";
 import { ButtonLink, Container, Eyebrow, SectionHeading } from "@/components/ui";
-import { featuredCourses } from "@/lib/courses";
+import { getFeaturedCourses } from "@/lib/courses";
+import { site } from "@/lib/site";
+
+/** The featured courses come from the database, so refresh them hourly. */
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function HomePage() {
   return (
     <>
+      <OrganizationJsonLd />
       <Hero />
       <TrustBar />
       <FeaturedCourses />
@@ -14,6 +24,30 @@ export default function HomePage() {
       <Testimonials />
       <FinalCta />
     </>
+  );
+}
+
+/* ── Structured data ──────────────────────────────────────────────────── */
+
+function OrganizationJsonLd() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    name: site.name,
+    description: site.description,
+    url: site.url,
+    email: site.email,
+    telephone: site.phone,
+    address: site.address,
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+      }}
+    />
   );
 }
 
@@ -146,7 +180,9 @@ function TrustBar() {
 
 /* ── Featured courses ─────────────────────────────────────────────────── */
 
-function FeaturedCourses() {
+async function FeaturedCourses() {
+  const featuredCourses = await getFeaturedCourses();
+
   return (
     <section id="courses" className="py-24 sm:py-32">
       <Container>
