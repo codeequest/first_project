@@ -80,6 +80,11 @@ export default async function CoursesPage({
     return query ? `/courses?${query}` : "/courses";
   }
 
+  const one = courses.length === 1;
+  const countLabel = `${courses.length} ${one ? "course" : "courses"} ${
+    hasFilters ? (one ? "matches your filters" : "match your filters") : "available"
+  }`;
+
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
@@ -210,9 +215,7 @@ export default async function CoursesPage({
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
               <p aria-live="polite" className="text-sm text-muted">
-                {courses.length}{" "}
-                {courses.length === 1 ? "course" : "courses"}
-                {hasFilters ? " match your filters" : " available"}
+                {countLabel}
               </p>
               {hasFilters ? (
                 <Link
