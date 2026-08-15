@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { formatPrice, levelLabels, type CourseCardData } from "@/lib/courses";
+import { formatPrice, levelLabel, type CatalogCourse } from "@/lib/courses";
 import { cn } from "./ui";
 
+/**
+ * Badge tint per category, keyed by the category slug from the database.
+ * A category we have no tint for falls back to the neutral surface style,
+ * so adding one in the admin never breaks the card.
+ */
 const categoryStyles: Record<string, string> = {
   "bi-data": "bg-amber-50 text-amber-700 ring-amber-100",
   "artificial-intelligence": "bg-violet-50 text-violet-700 ring-violet-100",
   "project-management": "bg-brand-50 text-brand-700 ring-brand-100",
   agile: "bg-emerald-50 text-emerald-700 ring-emerald-100",
 };
-const defaultCategoryStyle = "bg-surface-alt text-ink ring-line";
 
-export function CourseCard({ course }: { course: CourseCardData }) {
+const neutralBadge = "bg-surface-alt text-muted ring-line";
+
+export function CourseCard({ course }: { course: CatalogCourse }) {
   return (
     <article className="group relative flex h-full flex-col gap-5 rounded-2xl bg-white p-7 ring-1 ring-line transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-950/8 hover:ring-brand-200">
       <div className="flex flex-wrap items-center gap-2">
@@ -18,7 +24,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
           <span
             className={cn(
               "rounded-full px-3 py-1 text-xs font-semibold ring-1",
-              categoryStyles[course.category.slug] ?? defaultCategoryStyle,
+              categoryStyles[course.category.slug] ?? neutralBadge,
             )}
           >
             {course.category.name}
@@ -37,9 +43,11 @@ export function CourseCard({ course }: { course: CourseCardData }) {
             {course.title}
           </Link>
         </h3>
-        <p className="text-[15px] leading-relaxed text-muted">
-          {course.subtitle}
-        </p>
+        {course.subtitle ? (
+          <p className="text-[15px] leading-relaxed text-muted">
+            {course.subtitle}
+          </p>
+        ) : null}
       </div>
 
       <ul className="flex flex-col gap-2 text-sm text-muted">
@@ -54,7 +62,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
       <div className="mt-auto flex items-end justify-between border-t border-line pt-5">
         <div className="flex flex-col">
           <span className="text-xs font-medium uppercase tracking-wider text-muted">
-            {course.durationHours} hours · {levelLabels[course.level]}
+            {course.durationHours} hours · {levelLabel(course.level)}
           </span>
           <span className="text-2xl font-extrabold tracking-tight text-ink">
             {formatPrice(course)}

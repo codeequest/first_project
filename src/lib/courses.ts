@@ -1,17 +1,72 @@
-import type { CourseLevel, Prisma } from "@prisma/client";
+/**
+ * Public catalog — queries and display helpers.
+ *
+ * Everything in here backs the marketing site, which is readable by anyone,
+ * so every query is scoped to `status: PUBLISHED`. Draft and archived courses
+ * must never leak out of this module.
+ *
+ * Queries are wrapped in React's `cache()` so a page and its
+ * `generateMetadata` can both call them and only hit the database once.
+ */
+import type { CourseLevel, DeliveryMode, Prisma } from "@prisma/client";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
-export const levelLabels: Record<CourseLevel, string> = {
+/* ── Filter vocabulary ────────────────────────────────────────────────── */
+
+export const COURSE_LEVELS = [
+  "BEGINNER",
+  "INTERMEDIATE",
+  "ADVANCED",
+] as const satisfies readonly CourseLevel[];
+
+export const DELIVERY_MODES = [
+  "SELF_PACED",
+  "LIVE_ONLINE",
+  "IN_PERSON",
+  "HYBRID",
+] as const satisfies readonly DeliveryMode[];
+
+const LEVEL_LABELS: Record<CourseLevel, string> = {
   BEGINNER: "Beginner",
   INTERMEDIATE: "Intermediate",
   ADVANCED: "Advanced",
 };
 
-const courseCardSelect = {
+const DELIVERY_LABELS: Record<DeliveryMode, string> = {
+  SELF_PACED: "Self-paced",
+  LIVE_ONLINE: "Live online",
+  IN_PERSON: "In person",
+  HYBRID: "Hybrid",
+};
+
+export function levelLabel(level: CourseLevel) {
+  return LEVEL_LABELS[level];
+}
+
+export function deliveryLabel(mode: DeliveryMode) {
+  return DELIVERY_LABELS[mode];
+}
+
+/** Narrows an untrusted query-string value to a known enum member. */
+export function parseLevel(value: string | undefined): CourseLevel | undefined {
+  return COURSE_LEVELS.find((level) => level === value);
+}
+
+export function parseDelivery(
+  value: string | undefined,
+): DeliveryMode | undefined {
+  return DELIVERY_MODES.find((mode) => mode === value);
+}
+
+/* ── Shapes ───────────────────────────────────────────────────────────── */
+
+const cardSelect = {
   slug: true,
   title: true,
   subtitle: true,
   level: true,
+  deliveryMode: true,
   durationHours: true,
   price: true,
   currency: true,
@@ -20,72 +75,24 @@ const courseCardSelect = {
   category: { select: { slug: true, name: true } },
 } satisfies Prisma.CourseSelect;
 
-type CourseCardRow = Prisma.CourseGetPayload<{ select: typeof courseCardSelect }>;
-
-export type CourseCardData = Omit<CourseCardRow, "price"> & { price: number };
-
-function toCourseCardData(row: CourseCardRow): CourseCardData {
-  return { ...row, price: Number(row.price) };
-}
-
-export async function getFeaturedCourses(limit = 4): Promise<CourseCardData[]> {
-  const rows = await prisma.course.findMany({
-    where: { status: "PUBLISHED", isFeatured: true },
-    select: courseCardSelect,
-    orderBy: { publishedAt: "desc" },
-    take: limit,
-  });
-  return rows.map(toCourseCardData);
-}
-
-export async function getPublishedCourses(filters?: {
-  categorySlug?: string;
-  level?: CourseLevel;
-}): Promise<CourseCardData[]> {
-  const rows = await prisma.course.findMany({
-    where: {
-      status: "PUBLISHED",
-      ...(filters?.categorySlug
-        ? { category: { slug: filters.categorySlug } }
-        : {}),
-      ...(filters?.level ? { level: filters.level } : {}),
-    },
-    select: courseCardSelect,
-    orderBy: [{ isFeatured: "desc" }, { publishedAt: "desc" }],
-  });
-  return rows.map(toCourseCardData);
-}
-
-export async function getCategories() {
-  return prisma.category.findMany({
-    where: { courses: { some: { status: "PUBLISHED" } } },
-    select: { slug: true, name: true, nameFr: true },
-    orderBy: { order: "asc" },
-  });
-}
-
-const courseDetailSelect = {
-  slug: true,
-  title: true,
-  subtitle: true,
+const detailSelect = {
+  ...cardSelect,
+  id: true,
   description: true,
-  level: true,
-  deliveryMode: true,
-  durationHours: true,
   contactHours: true,
-  price: true,
-  currency: true,
-  certificationTarget: true,
   prerequisites: true,
-  learningOutcomes: true,
+  promoVideoUrl: true,
+  thumbnailUrl: true,
   seoTitle: true,
   seoDescription: true,
-  category: { select: { slug: true, name: true } },
+  publishedAt: true,
+  updatedAt: true,
   modules: {
     orderBy: { order: "asc" },
     select: {
       id: true,
       title: true,
+      description: true,
       lessons: {
         orderBy: { order: "asc" },
         select: {
@@ -99,6 +106,8 @@ const courseDetailSelect = {
     },
   },
   instructors: {
+    // A course can list several instructors; the lead comes first.
+    orderBy: { isLead: "desc" },
     where: { user: { instructorProfile: { isPublic: true } } },
     select: {
       isLead: true,
@@ -106,14 +115,15 @@ const courseDetailSelect = {
         select: {
           id: true,
           name: true,
-          image: true,
           instructorProfile: {
-            select: { headline: true, bio: true, expertise: true },
+            select: { headline: true, bio: true, linkedinUrl: true },
           },
         },
       },
     },
   },
+  // Only approved testimonials are public; pending and rejected ones must
+  // never reach the marketing site.
   testimonials: {
     where: { status: "APPROVED" },
     select: {
@@ -126,53 +136,118 @@ const courseDetailSelect = {
   },
 } satisfies Prisma.CourseSelect;
 
-type CourseDetailRow = Prisma.CourseGetPayload<{
-  select: typeof courseDetailSelect;
-}>;
+type CourseCardRow = Prisma.CourseGetPayload<{ select: typeof cardSelect }>;
+type CourseDetailRow = Prisma.CourseGetPayload<{ select: typeof detailSelect }>;
 
-export type CourseDetailData = Omit<CourseDetailRow, "price"> & {
-  price: number;
-};
+/**
+ * `price` is a Prisma `Decimal`, which is not a plain value React can pass
+ * across the server/client boundary — it is converted to a number here, once.
+ */
+export type CatalogCourse = Omit<CourseCardRow, "price"> & { price: number };
+export type CourseDetail = Omit<CourseDetailRow, "price"> & { price: number };
 
-export async function getCourseBySlug(
-  slug: string,
-): Promise<CourseDetailData | null> {
-  const row = await prisma.course.findFirst({
-    where: { slug, status: "PUBLISHED" },
-    select: courseDetailSelect,
-  });
-  if (!row) return null;
+function toCatalogCourse<T extends { price: Prisma.Decimal }>(row: T) {
   return { ...row, price: Number(row.price) };
 }
 
-export async function getPublishedCourseSlugs(): Promise<string[]> {
-  const rows = await prisma.course.findMany({
-    where: { status: "PUBLISHED" },
-    select: { slug: true },
-  });
-  return rows.map((row) => row.slug);
-}
+/* ── Queries ──────────────────────────────────────────────────────────── */
 
-/** Lightweight list for nav-style contexts like the site footer. */
-export async function getFooterCourseLinks() {
+export type CatalogFilters = {
+  category?: string;
+  level?: CourseLevel;
+  delivery?: DeliveryMode;
+  q?: string;
+};
+
+export const getPublishedCourses = cache(
+  async (filters: CatalogFilters = {}): Promise<CatalogCourse[]> => {
+    const { category, level, delivery, q } = filters;
+
+    const rows = await prisma.course.findMany({
+      where: {
+        status: "PUBLISHED",
+        ...(category ? { category: { slug: category } } : {}),
+        ...(level ? { level } : {}),
+        ...(delivery ? { deliveryMode: delivery } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: "insensitive" } },
+                { subtitle: { contains: q, mode: "insensitive" } },
+                { certificationTarget: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ isFeatured: "desc" }, { title: "asc" }],
+      select: cardSelect,
+    });
+
+    return rows.map(toCatalogCourse);
+  },
+);
+
+export const getFeaturedCourses = cache(
+  async (limit = 4): Promise<CatalogCourse[]> => {
+    const rows = await prisma.course.findMany({
+      where: { status: "PUBLISHED", isFeatured: true },
+      orderBy: { title: "asc" },
+      take: limit,
+      select: cardSelect,
+    });
+
+    return rows.map(toCatalogCourse);
+  },
+);
+
+export const getCourseBySlug = cache(
+  async (slug: string): Promise<CourseDetail | null> => {
+    const row = await prisma.course.findFirst({
+      where: { slug, status: "PUBLISHED" },
+      select: detailSelect,
+    });
+
+    return row ? toCatalogCourse(row) : null;
+  },
+);
+
+/** Categories that actually have something published in them. */
+export const getCatalogCategories = cache(async () => {
+  return prisma.category.findMany({
+    where: { courses: { some: { status: "PUBLISHED" } } },
+    orderBy: { order: "asc" },
+    select: { slug: true, name: true },
+  });
+});
+
+/**
+ * Slug + title only, for navigation. Used by the site footer, which renders
+ * on every page including the private ones — keep it cheap.
+ */
+export const getCourseNavLinks = cache(async () => {
   return prisma.course.findMany({
     where: { status: "PUBLISHED" },
+    orderBy: [{ isFeatured: "desc" }, { title: "asc" }],
+    take: 6,
     select: { slug: true, title: true },
-    orderBy: { publishedAt: "desc" },
-    take: 4,
   });
-}
+});
 
-export function formatPrice({
-  price,
-  currency,
-}: {
-  price: number;
-  currency: string;
-}) {
+/** Used by `generateStaticParams` and the sitemap. */
+export const getPublishedCourseSlugs = cache(async () => {
+  return prisma.course.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { title: "asc" },
+    select: { slug: true, updatedAt: true },
+  });
+});
+
+/* ── Formatting ───────────────────────────────────────────────────────── */
+
+export function formatPrice(course: Pick<CatalogCourse, "price" | "currency">) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency,
+    currency: course.currency,
     maximumFractionDigits: 0,
-  }).format(price);
+  }).format(course.price);
 }

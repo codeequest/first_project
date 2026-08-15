@@ -68,9 +68,11 @@ src/
 │   ├── layout.tsx            # Root layout: fonts, header, footer, metadata
 │   ├── page.tsx              # Home page  ← built
 │   ├── globals.css           # Design tokens (colors, type scale, animation)
+│   ├── sitemap.ts            # Generated sitemap.xml      ← built
+│   ├── robots.ts             # Generated robots.txt       ← built
 │   ├── courses/
-│   │   ├── page.tsx          # Catalog                    ← placeholder
-│   │   └── [slug]/page.tsx   # Course detail              ← placeholder
+│   │   ├── page.tsx          # Catalog + filters          ← built
+│   │   └── [slug]/page.tsx   # Course detail              ← built
 │   ├── contact/page.tsx      # Contact form               ← placeholder
 │   ├── legal/[slug]/page.tsx # Privacy / Terms / Cookies  ← placeholder
 │   ├── login/page.tsx        # Login                      ← placeholder
@@ -84,8 +86,8 @@ src/
 │   ├── reveal.tsx            # Scroll-reveal animation wrapper
 │   └── coming-soon.tsx       # Temporary placeholder page body
 └── lib/
-    ├── site.ts               # Site name, nav, contact details
-    └── courses.ts            # Seed course data (replaced by DB later)
+    ├── site.ts               # Site name, nav, contact details, base URL
+    └── courses.ts            # Public catalog queries + display helpers
 ```
 
 ## Branding
@@ -97,6 +99,21 @@ Everything visual is driven by tokens. To rebrand:
 3. **Name, contact details, nav** — `src/lib/site.ts`.
 
 No component hardcodes a color or the company name.
+
+## SEO
+
+`sitemap.xml` and `robots.txt` are generated from the database at
+`src/app/sitemap.ts` and `src/app/robots.ts`. Course pages carry `Course` and
+`BreadcrumbList` JSON-LD; the catalog carries `ItemList`; the home page carries
+`EducationalOrganization`.
+
+**Set `NEXT_PUBLIC_SITE_URL` in every environment.** It is the base for
+canonical links, OpenGraph tags and the sitemap. Next.js writes sitemap `<loc>`
+values verbatim — `metadataBase` does not apply there — so a wrong value here
+publishes a sitemap full of `localhost` URLs.
+
+Filtered catalog views (`/courses?level=…`) are served `noindex, follow` and
+canonicalise to `/courses`, so they do not compete with it in search results.
 
 ## How enrollment works
 

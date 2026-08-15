@@ -1,11 +1,24 @@
 import Link from "next/link";
-import { getFooterCourseLinks } from "@/lib/courses";
+import { getCourseNavLinks } from "@/lib/courses";
 import { legalNav, mainNav, site } from "@/lib/site";
 import { Logo } from "./logo";
 import { Container } from "./ui";
 
+/**
+ * The footer renders on every page, including the ones behind auth, so a
+ * database hiccup must not take the whole site down with it — a footer
+ * missing its course links is an acceptable degradation.
+ */
+async function courseLinks() {
+  try {
+    return await getCourseNavLinks();
+  } catch {
+    return [];
+  }
+}
+
 export async function SiteFooter() {
-  const courses = await getFooterCourseLinks();
+  const courses = await courseLinks();
 
   return (
     <footer className="mt-auto bg-brand-950 text-white/70">
