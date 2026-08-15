@@ -254,7 +254,7 @@ export default async function CourseDetailPage({
               ) : null}
             </dl>
 
-            <EnrollCta />
+            <EnrollCta courseSlug={course.slug} />
           </aside>
         </Container>
       </section>

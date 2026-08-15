@@ -4,13 +4,14 @@ import { useSession } from "next-auth/react";
 import { ButtonLink } from "./ui";
 
 /**
- * Track B owns the actual enrollment-request server action
- * (src/lib/actions/enrollment.ts, not built yet). This CTA is intentionally
- * inert so Track A does not have to touch that file: it only routes the
- * visitor to auth, or shows a disabled placeholder once logged in.
+ * The course page is statically rendered with ISR, so it cannot know who is
+ * reading it. This CTA only routes: /courses/[slug]/enroll is a dynamic route
+ * and decides there what to show — the request form, or the status of a
+ * request already made.
  */
-export function EnrollCta() {
+export function EnrollCta({ courseSlug }: { courseSlug: string }) {
   const { data: session, status } = useSession();
+  const enrollHref = `/courses/${courseSlug}/enroll`;
 
   if (status === "loading") {
     return (
@@ -21,7 +22,7 @@ export function EnrollCta() {
   if (!session?.user) {
     return (
       <ButtonLink
-        href="/login"
+        href={`/login?callbackUrl=${encodeURIComponent(enrollHref)}`}
         className="w-full justify-center px-8 py-3.5 text-base"
       >
         Request enrollment
@@ -34,13 +35,11 @@ export function EnrollCta() {
   }
 
   return (
-    <button
-      type="button"
-      disabled
-      title="Enrollment requests are coming soon"
-      className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-600 px-8 py-3.5 text-base font-semibold text-white opacity-60 shadow-sm shadow-brand-600/25"
+    <ButtonLink
+      href={enrollHref}
+      className="w-full justify-center px-8 py-3.5 text-base"
     >
-      Request enrollment — coming soon
-    </button>
+      Request enrollment
+    </ButtonLink>
   );
 }
