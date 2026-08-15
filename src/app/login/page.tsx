@@ -4,7 +4,19 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in" };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const { callbackUrl } = await searchParams;
+
+  // Carry the destination across to sign-up too, otherwise someone who came
+  // here for a course and then creates an account loses their way back.
+  const signupHref = callbackUrl
+    ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : "/signup";
+
   return (
     <AuthShell
       title="Welcome back"
@@ -12,10 +24,10 @@ export default function LoginPage() {
       footer={{
         text: "Don't have an account?",
         linkLabel: "Create one",
-        href: "/signup",
+        href: signupHref,
       }}
     >
-      <LoginForm />
+      <LoginForm callbackUrl={callbackUrl} />
     </AuthShell>
   );
 }

@@ -4,7 +4,17 @@ import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "Sign up" };
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const { callbackUrl } = await searchParams;
+
+  const loginHref = callbackUrl
+    ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
+    : "/login";
+
   return (
     <AuthShell
       title="Create your account"
@@ -12,10 +22,10 @@ export default function SignupPage() {
       footer={{
         text: "Already have an account?",
         linkLabel: "Log in",
-        href: "/login",
+        href: loginHref,
       }}
     >
-      <SignupForm />
+      <SignupForm callbackUrl={callbackUrl} />
     </AuthShell>
   );
 }

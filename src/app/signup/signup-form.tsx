@@ -6,7 +6,7 @@ import { registerAction, type AuthFormState } from "@/lib/actions/auth";
 
 const initialState: AuthFormState = {};
 
-export function SignupForm() {
+export function SignupForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, formAction, pending] = useActionState(
     registerAction,
     initialState,
@@ -15,6 +15,10 @@ export function SignupForm() {
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <FormError>{state.error}</FormError>
+
+      {callbackUrl ? (
+        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField
