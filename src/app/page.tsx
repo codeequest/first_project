@@ -1,23 +1,53 @@
+import type { Metadata } from "next";
 import { CourseCard } from "@/components/course-card";
 import { Reveal } from "@/components/reveal";
 import { ButtonLink, Container, Eyebrow, SectionHeading } from "@/components/ui";
-import { getFeaturedCourses, type CourseCardData } from "@/lib/courses";
+import { getFeaturedCourses } from "@/lib/courses";
+import { site } from "@/lib/site";
 
-export const revalidate = 300;
+/** The featured courses come from the database, so refresh them hourly. */
+export const revalidate = 3600;
 
-export default async function HomePage() {
-  const featuredCourses = await getFeaturedCourses();
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
+export default function HomePage() {
   return (
     <>
+      <OrganizationJsonLd />
       <Hero />
       <TrustBar />
-      <FeaturedCourses courses={featuredCourses} />
+      <FeaturedCourses />
       <WhyUs />
       <HowItWorks />
       <Testimonials />
       <FinalCta />
     </>
+  );
+}
+
+/* ── Structured data ──────────────────────────────────────────────────── */
+
+function OrganizationJsonLd() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "EducationalOrganization",
+    name: site.name,
+    description: site.description,
+    url: site.url,
+    email: site.email,
+    telephone: site.phone,
+    address: site.address,
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+      }}
+    />
   );
 }
 
@@ -150,7 +180,9 @@ function TrustBar() {
 
 /* ── Featured courses ─────────────────────────────────────────────────── */
 
-function FeaturedCourses({ courses }: { courses: CourseCardData[] }) {
+async function FeaturedCourses() {
+  const featuredCourses = await getFeaturedCourses();
+
   return (
     <section id="courses" className="py-24 sm:py-32">
       <Container>
@@ -167,7 +199,7 @@ function FeaturedCourses({ courses }: { courses: CourseCardData[] }) {
         </Reveal>
 
         <div className="mt-14 grid gap-6 sm:grid-cols-2">
-          {courses.map((course, index) => (
+          {featuredCourses.map((course, index) => (
             <Reveal key={course.slug} delay={index * 90}>
               <CourseCard course={course} />
             </Reveal>
