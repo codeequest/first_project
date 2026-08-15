@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   DashboardShell,
   EmptyState,
@@ -6,6 +7,7 @@ import {
 } from "@/components/dashboard-shell";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
+import { EnrollmentReview } from "./enrollment-review";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -28,12 +30,21 @@ export default async function AdminDashboardPage() {
     prisma.enrollment.findMany({
       where: { status: "PENDING" },
       orderBy: { requestedAt: "asc" },
-      take: 10,
+      take: 25,
       select: {
         id: true,
         requestedAt: true,
-        user: { select: { name: true, email: true } },
-        course: { select: { title: true } },
+        requestMessage: true,
+        contactEmail: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            studentProfile: { select: { company: true, jobTitle: true } },
+          },
+        },
+        course: { select: { title: true, slug: true } },
       },
     }),
   ]);
@@ -73,30 +84,77 @@ export default async function AdminDashboardPage() {
             />
           ) : (
             <ul className="flex flex-col gap-3">
-              {pendingRequests.map((request) => (
-                <li
-                  key={request.id}
-                  className="flex flex-col gap-3 rounded-2xl bg-white p-5 ring-1 ring-line sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex flex-col gap-1">
-                    <span className="font-semibold text-ink">
-                      {request.user.name ?? request.user.email}
-                    </span>
-                    <span className="text-sm text-muted">
-                      {request.course.title} · requested{" "}
-                      {request.requestedAt.toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                  {/* Approve/reject actions land here with the admin dashboard. */}
-                  <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">
-                    Pending
-                  </span>
-                </li>
-              ))}
+              {pendingRequests.map((request) => {
+                const role = [
+                  request.user.studentProfile?.jobTitle,
+                  request.user.studentProfile?.company,
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+
+                // Where the approval notice goes. Older rows predate the
+                // field and fall back to the account email.
+                const notifyEmail =
+                  request.contactEmail ?? request.user.email;
+                const usesOtherEmail = notifyEmail !== request.user.email;
+
+                return (
+                  <li
+                    key={request.id}
+                    className="grid gap-5 rounded-2xl bg-white p-6 ring-1 ring-line lg:grid-cols-[1.7fr_1fr] lg:items-start"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-ink">
+                          {request.user.name ?? request.user.email}
+                        </span>
+                        <span className="text-sm text-muted">
+                          <a
+                            href={`mailto:${notifyEmail}`}
+                            className="font-medium text-ink hover:text-brand-700"
+                          >
+                            {notifyEmail}
+                          </a>
+                          {request.user.phone ? ` · ${request.user.phone}` : ""}
+                        </span>
+                        {usesOtherEmail ? (
+                          <span className="text-xs text-muted">
+                            Account email: {request.user.email}
+                          </span>
+                        ) : null}
+                        {role ? (
+                          <span className="text-sm text-muted">{role}</span>
+                        ) : null}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <Link
+                          href={`/courses/${request.course.slug}`}
+                          className="font-semibold text-ink hover:text-brand-700"
+                        >
+                          {request.course.title}
+                        </Link>
+                        <span className="text-muted">
+                          · requested{" "}
+                          {request.requestedAt.toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+
+                      {request.requestMessage ? (
+                        <p className="rounded-xl bg-surface-alt px-4 py-3 text-[15px] leading-relaxed text-muted ring-1 ring-line">
+                          {request.requestMessage}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <EnrollmentReview enrollmentId={request.id} />
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -38,6 +38,7 @@ export default async function StudentDashboardPage() {
       status: true,
       progressPercent: true,
       requestedAt: true,
+      reviewNote: true,
       course: { select: { slug: true, title: true, durationHours: true } },
     },
   });
@@ -84,6 +85,14 @@ export default async function StudentDashboardPage() {
                     {enrollment.course.durationHours} hours ·{" "}
                     {enrollment.progressPercent}% complete
                   </span>
+                  {enrollment.reviewNote ? (
+                    <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted">
+                      <span className="font-semibold text-ink">
+                        Note from our team:
+                      </span>{" "}
+                      {enrollment.reviewNote}
+                    </p>
+                  ) : null}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${

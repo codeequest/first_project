@@ -2,6 +2,7 @@
 
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { homePathForRole } from "@/auth.config";
@@ -23,6 +24,40 @@ export type AuthFormState = {
 };
 
 const BCRYPT_ROUNDS = 12;
+
+/**
+ * Where to send someone after they authenticate, when they were interrupted
+ * on their way somewhere — e.g. clicking "Request enrollment" while logged
+ * out. Never trusted as given: an attacker who can put a URL in front of a
+ * user must not be able to bounce them off-site after login.
+ *
+ * Absolute URLs are accepted only when they point at this same host, because
+ * the auth middleware itself produces them ("?callbackUrl=http://host/admin").
+ * Anything else falls back to the caller's default.
+ */
+async function safeCallbackUrl(
+  raw: FormDataEntryValue | null,
+): Promise<string | null> {
+  if (typeof raw !== "string" || raw.length === 0) return null;
+
+  try {
+    const url = new URL(raw, "http://callback.invalid");
+
+    if (url.hostname !== "callback.invalid") {
+      const hdrs = await headers();
+      const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
+      if (!host || url.host !== host) return null;
+    }
+
+    const path = `${url.pathname}${url.search}`;
+    if (!path.startsWith("/") || path.startsWith("//")) return null;
+    // Bouncing back to an auth page would loop.
+    if (path.startsWith("/login") || path.startsWith("/signup")) return null;
+    return path;
+  } catch {
+    return null;
+  }
+}
 
 export async function registerAction(
   _prevState: AuthFormState,
@@ -92,7 +127,11 @@ export async function registerAction(
     throw error;
   }
 
-  redirect("/dashboard");
+  // A new student who came here from "Request enrollment" should land back
+  // on that form, not on an empty dashboard.
+  redirect(
+    (await safeCallbackUrl(formData.get("callbackUrl"))) ?? "/dashboard",
+  );
 }
 
 export async function loginAction(
@@ -130,5 +169,8 @@ export async function loginAction(
     select: { role: true },
   });
 
-  redirect(homePathForRole(user?.role));
+  redirect(
+    (await safeCallbackUrl(formData.get("callbackUrl"))) ??
+      homePathForRole(user?.role),
+  );
 }

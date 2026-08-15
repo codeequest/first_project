@@ -375,6 +375,11 @@ model Enrollment {
   course   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   status   EnrollmentStatus @default(PENDING)
 
+  /// Where to write to the student about THIS request. Defaults to the
+  /// account email but can differ — the account may be a work address the
+  /// student no longer reads. Nullable only for rows created before this
+  /// field existed; the enrollment action always sets it.
+  contactEmail   String?
   /// Optional note the student adds when requesting a place.
   requestMessage String?
   /// Admin-facing note explaining an approval or rejection.

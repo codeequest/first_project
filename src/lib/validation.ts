@@ -59,3 +59,38 @@ export const contactSchema = z.object({
 });
 
 export type ContactInput = z.infer<typeof contactSchema>;
+
+/**
+ * A student asking for a place on a course. Identity is NOT in this schema —
+ * the server reads it from the session, so a caller cannot enroll someone
+ * else by posting a different user id.
+ */
+export const enrollmentRequestSchema = z.object({
+  courseSlug: z.string().trim().min(1, "Course is required").max(80),
+  /// Where approval and rejection notices are sent for this request.
+  contactEmail: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("Enter a valid email address")
+    .max(255),
+  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  company: z.string().trim().max(120).optional().or(z.literal("")),
+  jobTitle: z.string().trim().max(120).optional().or(z.literal("")),
+  motivation: z
+    .string()
+    .trim()
+    .min(10, "Tell us a little more — at least 10 characters")
+    .max(2000),
+});
+
+export type EnrollmentRequestInput = z.infer<typeof enrollmentRequestSchema>;
+
+/** An admin settling a pending request. */
+export const enrollmentReviewSchema = z.object({
+  enrollmentId: z.string().trim().min(1, "Enrollment is required").max(40),
+  decision: z.enum(["APPROVE", "REJECT"]),
+  reviewNote: z.string().trim().max(1000).optional().or(z.literal("")),
+});
+
+export type EnrollmentReviewInput = z.infer<typeof enrollmentReviewSchema>;

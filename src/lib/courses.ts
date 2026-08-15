@@ -153,6 +153,28 @@ export async function getPublishedCourseSlugs(): Promise<string[]> {
   return rows.map((row) => row.slug);
 }
 
+/**
+ * The subset the enrollment flow needs. Separate from the detail select
+ * because that one is for the public page and deliberately omits the id.
+ */
+export async function getEnrollableCourse(slug: string) {
+  const row = await prisma.course.findFirst({
+    where: { slug, status: "PUBLISHED" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      subtitle: true,
+      level: true,
+      durationHours: true,
+      price: true,
+      currency: true,
+    },
+  });
+  if (!row) return null;
+  return { ...row, price: Number(row.price) };
+}
+
 /** Lightweight list for nav-style contexts like the site footer. */
 export async function getFooterCourseLinks() {
   return prisma.course.findMany({
