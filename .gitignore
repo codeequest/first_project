@@ -43,5 +43,8 @@ next-env.d.ts
 # playwright-mcp screenshot output
 .playwright-mcp/
 
+# locally installed Claude Code subagent (machine-specific, not shared)
+.claude/agents/merge-verifier.md
+
 # keep the template, ignore real env files
 !.env.example

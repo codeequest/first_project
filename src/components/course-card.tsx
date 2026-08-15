@@ -12,7 +12,7 @@ const defaultCategoryStyle = "bg-surface-alt text-ink ring-line";
 
 export function CourseCard({ course }: { course: CourseCardData }) {
   return (
-    <article className="group relative flex h-full flex-col gap-5 rounded-2xl bg-white p-7 ring-1 ring-line transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-950/8 hover:ring-brand-200">
+    <article className="flex h-full flex-col gap-5 rounded-2xl bg-white p-7 ring-1 ring-line transition duration-300 hover:ring-brand-200">
       <div className="flex flex-wrap items-center gap-2">
         {course.category ? (
           <span
@@ -33,9 +33,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-2xl font-bold tracking-tight text-ink">
-          <Link href={`/courses/${course.slug}`} className="after:absolute after:inset-0">
-            {course.title}
-          </Link>
+          {course.title}
         </h3>
         <p className="text-[15px] leading-relaxed text-muted">
           {course.subtitle}
@@ -60,10 +58,13 @@ export function CourseCard({ course }: { course: CourseCardData }) {
             {formatPrice(course)}
           </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-transform duration-300 group-hover:translate-x-1">
+        <Link
+          href={`/courses/${course.slug}`}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 transition-transform duration-300 hover:translate-x-1"
+        >
           View course
           <ArrowIcon />
-        </span>
+        </Link>
       </div>
     </article>
   );
