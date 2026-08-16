@@ -15,7 +15,6 @@ export default async function HomePage() {
       <FeaturedCourses courses={featuredCourses} />
       <WhyUs />
       <HowItWorks />
-      <Testimonials />
       <FinalCta />
     </>
   );
@@ -306,86 +305,6 @@ function HowItWorks() {
         </ol>
       </Container>
     </section>
-  );
-}
-
-/* ── Testimonials ─────────────────────────────────────────────────────── */
-
-const testimonials = [
-  {
-    quote:
-      "I had been putting off the PMP for three years. The cohort format and the mock exams made the difference — I passed on the first attempt.",
-    name: "Placeholder Name",
-    role: "Project Manager, Placeholder Company",
-  },
-  {
-    quote:
-      "The Power BI track was ruthlessly practical. I rebuilt our entire monthly reporting pack during the course and presented it in week five.",
-    name: "Placeholder Name",
-    role: "Data Analyst, Placeholder Company",
-  },
-  {
-    quote:
-      "Genuinely the first Generative AI course I have taken that went past the demo stage and into what you actually ship.",
-    name: "Placeholder Name",
-    role: "Software Engineer, Placeholder Company",
-  },
-];
-
-function Testimonials() {
-  return (
-    <section className="border-y border-line bg-surface-alt py-24 sm:py-32">
-      <Container>
-        <Reveal>
-          <SectionHeading
-            eyebrow="Testimonials"
-            title={<span className="font-display">What our graduates say</span>}
-          />
-        </Reveal>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {testimonials.map((item, index) => (
-            <Reveal key={item.quote} delay={index * 90}>
-              <figure className="flex h-full flex-col gap-6 rounded-2xl bg-white p-8 ring-1 ring-line">
-                <Stars />
-                <blockquote className="flex-1 text-[15px] leading-relaxed text-ink/80">
-                  &ldquo;{item.quote}&rdquo;
-                </blockquote>
-                <figcaption className="flex items-center gap-3 border-t border-line pt-5">
-                  <span className="grid h-10 w-10 place-items-center rounded-full bg-brand-100 font-display text-sm font-bold text-brand-700">
-                    {item.name.charAt(0)}
-                  </span>
-                  <span className="flex flex-col">
-                    <span className="text-sm font-semibold text-ink">
-                      {item.name}
-                    </span>
-                    <span className="text-xs text-muted">{item.role}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
-        </div>
-      </Container>
-    </section>
-  );
-}
-
-function Stars() {
-  return (
-    <div className="flex gap-0.5 text-accent-500" aria-label="Rated 5 out of 5">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <svg
-          key={index}
-          viewBox="0 0 20 20"
-          aria-hidden="true"
-          className="h-4 w-4"
-          fill="currentColor"
-        >
-          <path d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L1.6 7.7l5.8-.8L10 1.6Z" />
-        </svg>
-      ))}
-    </div>
   );
 }
 

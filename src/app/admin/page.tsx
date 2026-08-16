@@ -60,11 +60,16 @@ export default async function AdminDashboardPage() {
           label="Pending requests"
           value={pendingCount}
           hint="Waiting for your approval"
+          emphasize={pendingCount > 0}
         />
         <StatCard label="Active enrollments" value={activeCount} />
         <StatCard label="Students" value={studentCount} />
         <StatCard label="Published courses" value={publishedCourses} />
-        <StatCard label="New messages" value={newMessages} />
+        <StatCard
+          label="New messages"
+          value={newMessages}
+          emphasize={newMessages > 0}
+        />
       </div>
 
       <div className="mt-12">
@@ -151,7 +156,11 @@ export default async function AdminDashboardPage() {
                       ) : null}
                     </div>
 
-                    <EnrollmentReview enrollmentId={request.id} />
+                    <EnrollmentReview
+                      enrollmentId={request.id}
+                      studentName={request.user.name ?? request.user.email}
+                      courseTitle={request.course.title}
+                    />
                   </li>
                 );
               })}

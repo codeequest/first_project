@@ -22,7 +22,7 @@ const statusPanels: Record<
   PENDING: {
     tone: "bg-amber-50 text-amber-900 ring-amber-100",
     title: "Your request is with our team",
-    body: "An administrator reviews each request by hand. You will see the course unlock in your dashboard as soon as it is approved.",
+    body: "An administrator reviews each request by hand — usually within 24 hours. You will see the course unlock in your dashboard as soon as it is approved.",
   },
   ACTIVE: {
     tone: "bg-emerald-50 text-emerald-900 ring-emerald-100",

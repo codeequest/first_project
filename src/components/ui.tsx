@@ -46,6 +46,54 @@ export function ButtonLink({
   );
 }
 
+/**
+ * Every "colored pill on a white card" in the app — course category, review
+ * certification target, enrollment status — was its own hand-rolled color
+ * map (course-card.tsx, dashboard/page.tsx) before this existed, each
+ * picking Tailwind shades independently. One tone vocabulary here keeps new
+ * pills from inventing a fifth palette; "brand" is the only tone that's a
+ * real design token, the rest are the existing Tailwind palette used
+ * consistently rather than ad hoc.
+ */
+export type BadgeTone =
+  | "brand"
+  | "amber"
+  | "violet"
+  | "emerald"
+  | "red"
+  | "neutral";
+
+const badgeTones: Record<BadgeTone, string> = {
+  brand: "bg-brand-50 text-brand-700 ring-brand-100",
+  amber: "bg-amber-50 text-amber-700 ring-amber-100",
+  violet: "bg-violet-50 text-violet-700 ring-violet-100",
+  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  red: "bg-red-50 text-red-700 ring-red-100",
+  neutral: "bg-surface-alt text-ink ring-line",
+};
+
+export function Badge({
+  tone = "neutral",
+  className,
+  children,
+}: {
+  tone?: BadgeTone;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full px-3 py-1 text-xs font-semibold ring-1",
+        badgeTones[tone],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-brand-700 ring-1 ring-brand-100">

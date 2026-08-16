@@ -39,8 +39,9 @@ export function EnrollmentForm({
           role="status"
           className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 ring-1 ring-emerald-100"
         >
-          Request sent. An administrator will review it and your dashboard will
-          show the course as soon as it is approved.
+          Request sent. An administrator will review it — usually within 24
+          hours — and your dashboard will show the course as soon as it is
+          approved.
         </p>
         <Link
           href="/dashboard"

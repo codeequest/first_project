@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { useToast } from "@/components/toast";
 import {
   reviewEnrollmentAction,
   type ReviewFormState,
@@ -12,12 +13,32 @@ const initialState: ReviewFormState = {};
  * Approve/reject for one pending request. Both buttons submit the same form —
  * the pressed button carries the decision, so the note the admin typed is
  * attached either way.
+ *
+ * Reject needs a confirm step and both decisions need visible feedback: this
+ * unlocks or turns away a paying student, and the old version submitted
+ * instantly on click with the only sign of success being the row quietly
+ * vanishing from the list on the next server render. The toast fires
+ * optimistically on click (in the same synchronous handler as the submit)
+ * rather than waiting on the action to resolve, because a successful
+ * approve/reject removes this row from the list in the very same render
+ * that would otherwise carry a "done" state — there's no later moment to
+ * show it from inside a component that's already gone.
  */
-export function EnrollmentReview({ enrollmentId }: { enrollmentId: string }) {
+export function EnrollmentReview({
+  enrollmentId,
+  studentName,
+  courseTitle,
+}: {
+  enrollmentId: string;
+  studentName: string;
+  courseTitle: string;
+}) {
   const [state, formAction, pending] = useActionState(
     reviewEnrollmentAction,
     initialState,
   );
+  const [confirmingReject, setConfirmingReject] = useState(false);
+  const toast = useToast();
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -44,24 +65,58 @@ export function EnrollmentReview({ enrollmentId }: { enrollmentId: string }) {
       />
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          name="decision"
-          value="APPROVE"
-          disabled={pending}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {pending ? "Working…" : "Approve"}
-        </button>
-        <button
-          type="submit"
-          name="decision"
-          value="REJECT"
-          disabled={pending}
-          className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition duration-200 hover:text-red-700 hover:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Reject
-        </button>
+        {confirmingReject ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setConfirmingReject(false)}
+              disabled={pending}
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition duration-200 hover:ring-brand-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              name="decision"
+              value="REJECT"
+              disabled={pending}
+              onClick={() =>
+                toast.show({
+                  message: `Request from ${studentName} rejected.`,
+                })
+              }
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Working…" : "Confirm reject"}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="submit"
+              name="decision"
+              value="APPROVE"
+              disabled={pending}
+              onClick={() =>
+                toast.show({
+                  tone: "success",
+                  message: `Approved — ${studentName} can now access ${courseTitle}.`,
+                })
+              }
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition duration-200 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? "Working…" : "Approve"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingReject(true)}
+              disabled={pending}
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink ring-1 ring-line transition duration-200 hover:text-red-700 hover:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Reject
+            </button>
+          </>
+        )}
       </div>
     </form>
   );

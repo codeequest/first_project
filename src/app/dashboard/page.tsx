@@ -5,18 +5,18 @@ import {
   EmptyState,
   StatCard,
 } from "@/components/dashboard-shell";
-import { ButtonLink } from "@/components/ui";
+import { Badge, ButtonLink, type BadgeTone } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = { title: "My learning" };
 
-const statusStyles: Record<string, string> = {
-  PENDING: "bg-amber-50 text-amber-700 ring-amber-100",
-  ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  COMPLETED: "bg-brand-50 text-brand-700 ring-brand-100",
-  REJECTED: "bg-red-50 text-red-700 ring-red-100",
-  CANCELLED: "bg-surface-alt text-muted ring-line",
+const statusTones: Record<string, BadgeTone> = {
+  PENDING: "amber",
+  ACTIVE: "emerald",
+  COMPLETED: "brand",
+  REJECTED: "red",
+  CANCELLED: "neutral",
 };
 
 const statusLabels: Record<string, string> = {
@@ -28,7 +28,11 @@ const statusLabels: Record<string, string> = {
 };
 
 export default async function StudentDashboardPage() {
-  const user = await requireRole("STUDENT", "INSTRUCTOR", "ADMIN");
+  // ADMIN deliberately excluded: an admin account has no enrollments, so
+  // this page renders correctly but empty — the fix is to never let an
+  // admin land here, not to make an empty page look less empty. requireRole
+  // already redirects anyone outside this list to their own home.
+  const user = await requireRole("STUDENT", "INSTRUCTOR");
 
   const enrollments = await prisma.enrollment.findMany({
     where: { userId: user.id },
@@ -82,8 +86,9 @@ export default async function StudentDashboardPage() {
                     {enrollment.course.title}
                   </Link>
                   <span className="text-sm text-muted">
-                    {enrollment.course.durationHours} hours ·{" "}
-                    {enrollment.progressPercent}% complete
+                    {enrollment.status === "PENDING"
+                      ? "Awaiting admin review — usually within 24 hours"
+                      : `${enrollment.course.durationHours} hours · ${enrollment.progressPercent}% complete`}
                   </span>
                   {enrollment.reviewNote ? (
                     <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted">
@@ -94,13 +99,9 @@ export default async function StudentDashboardPage() {
                     </p>
                   ) : null}
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                    statusStyles[enrollment.status] ?? statusStyles.CANCELLED
-                  }`}
-                >
+                <Badge tone={statusTones[enrollment.status] ?? "neutral"}>
                   {statusLabels[enrollment.status] ?? enrollment.status}
-                </span>
+                </Badge>
               </li>
             ))}
           </ul>

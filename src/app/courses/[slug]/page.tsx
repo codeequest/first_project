@@ -52,6 +52,16 @@ export default async function CourseDetailPage({
     0,
   );
 
+  // Syllabus, instructors and testimonials are all optional content that
+  // simply isn't seeded for every course yet. When none of them exist the
+  // page used to just trail into empty space after "What you will learn" —
+  // a $700+ program page that looks unfinished rather than intentionally
+  // lean. This keeps the page from ever dead-ending like that.
+  const hasExtendedContent =
+    course.modules.length > 0 ||
+    course.instructors.length > 0 ||
+    course.testimonials.length > 0;
+
   return (
     <>
       <section className="border-b border-line bg-surface-alt py-16 sm:py-20">
@@ -210,6 +220,22 @@ export default async function CourseDetailPage({
                 </div>
               </div>
             ) : null}
+
+            {!hasExtendedContent ? (
+              <div className="flex flex-col items-start gap-3 rounded-2xl bg-white p-8 ring-1 ring-line">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
+                  <DocumentIcon />
+                </span>
+                <h2 className="text-lg font-bold tracking-tight text-ink">
+                  Full syllabus shared after enrollment
+                </h2>
+                <p className="text-[15px] leading-relaxed text-muted">
+                  The detailed module breakdown, instructor bios and student
+                  outcomes for this program are shared directly once your
+                  enrollment request is approved.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <aside className="flex flex-col gap-6 rounded-2xl bg-white p-7 ring-1 ring-line lg:sticky lg:top-28">
@@ -259,6 +285,23 @@ export default async function CourseDetailPage({
         </Container>
       </section>
     </>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="currentColor"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.5 2A1.5 1.5 0 0 0 4 3.5v13A1.5 1.5 0 0 0 5.5 18h9a1.5 1.5 0 0 0 1.5-1.5V7.621a1.5 1.5 0 0 0-.44-1.06l-4.12-4.122A1.5 1.5 0 0 0 10.378 2H5.5Zm.5 8.25a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1-.75-.75Zm.75 2.75a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 

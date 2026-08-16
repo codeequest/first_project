@@ -31,7 +31,11 @@ export function EnrollCta({ courseSlug }: { courseSlug: string }) {
   }
 
   if (session.user.role !== "STUDENT") {
-    return null;
+    return (
+      <p className="rounded-2xl bg-surface-alt px-5 py-4 text-center text-sm text-muted ring-1 ring-line">
+        Enrollment requests are made from a student account.
+      </p>
+    );
   }
 
   return (

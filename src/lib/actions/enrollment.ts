@@ -3,6 +3,11 @@
 import { Prisma } from "@prisma/client";
 import { refresh, revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import {
+  enrollmentConfirmedEmail,
+  enrollmentReceivedEmail,
+} from "@/lib/emails/enrollment";
+import { sendMail } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
 import {
   enrollmentRequestSchema,
@@ -87,7 +92,7 @@ export async function requestEnrollmentAction(
   // The client names the course; everything else about it is read here.
   const course = await prisma.course.findFirst({
     where: { slug: courseSlug, status: "PUBLISHED" },
-    select: { id: true },
+    select: { id: true, title: true },
   });
 
   if (!course) {
@@ -181,6 +186,20 @@ export async function requestEnrollmentAction(
     throw error;
   }
 
+  // Sent after the write succeeds, same as the approval notice below: a mail
+  // failure must never look like the request itself failed.
+  try {
+    await sendMail(
+      enrollmentReceivedEmail({
+        to: contactEmail,
+        studentName: user.name,
+        courseTitle: course.title,
+      }),
+    );
+  } catch (error) {
+    console.error("Failed to send enrollment-received email:", error);
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/admin");
 
@@ -242,10 +261,37 @@ export async function reviewEnrollmentAction(
     },
   });
 
-  // TODO: notify the student by email once mail delivery is wired up. The
-  // recipient is Enrollment.contactEmail (fall back to User.email for rows
-  // created before that field existed). Send it AFTER this point so a mail
-  // failure can never roll back a decision the admin already made.
+  // Sent after the status write above so a mail failure can never roll back
+  // a decision the admin already made. Only the approval gets a "you're in"
+  // notice for now — rejection emails are a separate, not-yet-requested piece.
+  if (approved) {
+    try {
+      const enrollment = await prisma.enrollment.findUnique({
+        where: { id: enrollmentId },
+        select: {
+          contactEmail: true,
+          reviewNote: true,
+          user: { select: { email: true, name: true } },
+          course: { select: { title: true } },
+        },
+      });
+
+      if (enrollment) {
+        await sendMail(
+          enrollmentConfirmedEmail({
+            // contactEmail is only null on rows created before that field
+            // existed; User.email is the fallback for those.
+            to: enrollment.contactEmail ?? enrollment.user.email,
+            studentName: enrollment.user.name,
+            courseTitle: enrollment.course.title,
+            reviewNote: enrollment.reviewNote,
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to send enrollment-confirmed email:", error);
+    }
+  }
 
   revalidatePath("/dashboard");
   refresh();

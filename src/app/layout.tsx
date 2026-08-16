@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
+import { PublicFooterGate } from "@/components/public-footer-gate";
+import { SessionSync } from "@/components/session-sync";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { site } from "@/lib/site";
@@ -66,11 +68,14 @@ export default function RootLayout({
         {/* Session is fetched on the client so the marketing pages stay
             statically prerendered for SEO. */}
         <SessionProvider>
+          <SessionSync />
           <SiteHeader />
           <main id="main" className="flex-1">
             {children}
           </main>
-          <SiteFooter />
+          <PublicFooterGate>
+            <SiteFooter />
+          </PublicFooterGate>
         </SessionProvider>
       </body>
     </html>
